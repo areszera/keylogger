@@ -10,13 +10,18 @@ import (
 	"net"
 )
 
+const (
+	Protocol = "udp"
+	Address  = "127.0.0.1:8722"
+)
+
 func main() {
-	laddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:8722")
+	laddr, err := net.ResolveUDPAddr(Protocol, Address)
 	if err != nil {
 		fmt.Printf("Failed to resolve UDP address: %s\n", err.Error())
 		return
 	}
-	conn, err := net.ListenUDP("udp", laddr)
+	conn, err := net.ListenUDP(Protocol, laddr)
 	if err != nil {
 		fmt.Printf("Failed to listen UDP: %s\n", err.Error())
 		return
@@ -30,6 +35,6 @@ func main() {
 			fmt.Printf("Failed to read from UDP: %s\n", e.Error())
 			return
 		}
-		fmt.Printf("Sent from %s: %s\n", raddr, buffer[:n])
+		fmt.Printf("Received from %s: %s\n", raddr, buffer[:n])
 	}
 }

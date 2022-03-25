@@ -11,8 +11,15 @@ import (
 	"net"
 )
 
+const (
+	Protocol     = "udp"
+	Address      = "127.0.0.1:8722"
+	MouseEvent   = 0
+	NonCharEvent = hook.CharUndefined
+)
+
 func main() {
-	conn, err := net.Dial("udp", "127.0.0.1:8722")
+	conn, err := net.Dial(Protocol, Address)
 	if err != nil {
 		return
 	}
@@ -21,7 +28,7 @@ func main() {
 	evChan := hook.Start()
 	defer hook.End()
 	for ev := range evChan {
-		if ev.Keychar != 0 && ev.Keychar != 65535 {
+		if ev.Keychar != MouseEvent && ev.Keychar != NonCharEvent {
 			conn.Write([]byte(fmt.Sprintf("%c", ev.Keychar)))
 		}
 	}
