@@ -34,8 +34,22 @@ func main() {
 		n, raddr, e := conn.ReadFromUDP(buffer)
 		if e != nil {
 			fmt.Printf("Failed to read from UDP: %s\n", e.Error())
-			return
 		}
-		fmt.Printf("Received from %s: %s\n", raddr, buffer[:n])
+		fmt.Printf("Received from %s: %s\n", raddr, bufString(buffer[:n]))
+	}
+}
+
+func bufString(b []byte) string {
+	switch string(b) {
+	case "\t":
+		return "<tab>"
+	case "\r":
+		return "<enter>"
+	case " ":
+		return "<space>"
+	case "\b":
+		return "<backspace>"
+	default:
+		return string(b)
 	}
 }

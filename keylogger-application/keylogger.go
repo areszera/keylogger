@@ -12,10 +12,8 @@ import (
 )
 
 const (
-	Protocol     = "udp"
-	Address      = "127.0.0.1:8722"
-	MouseEvent   = 0
-	NonCharEvent = hook.CharUndefined
+	Protocol = "udp"
+	Address  = "127.0.0.1:8722"
 )
 
 func main() {
@@ -28,7 +26,7 @@ func main() {
 	evChan := hook.Start()
 	defer hook.End()
 	for ev := range evChan {
-		if ev.Keychar != MouseEvent && ev.Keychar != NonCharEvent {
+		if ev.Kind == hook.KeyDown {
 			conn.Write([]byte(fmt.Sprintf("%c", ev.Keychar)))
 		}
 	}
