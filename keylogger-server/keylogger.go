@@ -1,6 +1,6 @@
 // STATEMENT:
 // In consideration of all possible negative effects this software will bring,
-// this software is developed only for educational usage.
+// this software is developed only for academic usage.
 // Any malicious usage of this software is forbidden and unrelated to the author.
 
 package main
