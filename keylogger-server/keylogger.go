@@ -28,6 +28,7 @@ func main() {
 	}
 	defer conn.Close()
 
+	fmt.Println("Start listening...")
 	for {
 		buffer := make([]byte, 1024)
 		n, raddr, e := conn.ReadFromUDP(buffer)
