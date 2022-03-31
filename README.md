@@ -11,6 +11,14 @@ clipboard, then send them to the target server.
 Go to the `keylogger-application` and `keylogger-server` directory and execute `go mod tidy`to download libraries, then
 run `go run keylogger.go` to start the application and server, respectively.
 
+## Notice
+
+After running the Keylogger application, it will set autostart by modifying the registry table. To recover, just:
+
+1. Press `Windows` and `R` keys at the same time, then type `regedit` to open the Registry Editor.
+2. Go to `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`.
+3. Delete the key-value pair whose name is `Keylogger`.
+
 ## Acknowledgements
 
 - [Robotgo](https://github.com/go-vgo/robotgo): Go Native cross-platform GUI automation.
