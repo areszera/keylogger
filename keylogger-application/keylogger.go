@@ -7,6 +7,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/atotto/clipboard"
 	hook "github.com/robotn/gohook"
 	"net"
 )
@@ -22,6 +23,17 @@ func main() {
 		return
 	}
 	defer conn.Close()
+
+	go func() {
+		var text string
+		for {
+			t, _ := clipboard.ReadAll()
+			if t != text && t != "" {
+				text = t
+				conn.Write([]byte(text))
+			}
+		}
+	}()
 
 	evChan := hook.Start()
 	defer hook.End()

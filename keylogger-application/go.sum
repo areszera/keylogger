@@ -1,3 +1,5 @@
+github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
+github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/robotn/gohook v0.31.3 h1:kGX8iukJ9ensVRwRKnTtdojAMQOpa6KFnXDi4OA4RaI=
 github.com/robotn/gohook v0.31.3/go.mod h1:wyGik0yb4iwCfJjDprtNkTyxkgQWuKoVPQ3hkz6+6js=
 github.com/vcaesar/keycode v0.10.0 h1:Qx5QE8ZXHyRyjoA2QOxBp25OKMKB+zxMVqm0FWGV0d4=
