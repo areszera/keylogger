@@ -138,6 +138,8 @@ func listenKeyboard() {
 				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "backspace"))
 			case '\t':
 				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "tab"))
+			case rune(27):
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "escape"))
 			default:
 				// When nothing logged or the last recorded character is not TypeKeyboard, append a new logKey object
 				// directly. If it has recorded and the last recorded type is also TypeKeyboard, append the character to
