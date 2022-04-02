@@ -6,18 +6,41 @@
 Keylogger is consisted with an application and a server. The application listens events on keyboard and changes of
 clipboard, then send them to the target server.
 
-## Usage
+## Application
 
-Go to the `keylogger-application` and `keylogger-server` directory and execute `go mod tidy`to download libraries, then
-run `go run keylogger.go` to start the application and server, respectively.
+The keylogger application is programmed to record keyboard events and clipboard. When the number of logs is greater than
+the configured thresh, it will serialise to JSON and send to the keylogger server via TCP. Every time the application
+runs, it checks and registers autostart.
 
-## Notice
+### Compile and Run
 
-After running the Keylogger application, it will set autostart by modifying the registry table. To recover, just:
+The application is suggested to be compiled to executable files then run. Make sure Go has been installed in your
+device, to build for Windows, execute `go build -ldflags "-H windowsgui"`. The `ldflags` of `-H windowsgui` hides the
+command line window when the application is running (Windows only).
+
+### Recover
+
+After running the Keylogger application, it will set up autostart. To revoke autostart on Windows systems:
 
 1. Press `Windows` and `R` keys at the same time, then type `regedit` to open the Registry Editor.
-2. Go to `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`.
+2. Go to the `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` directory.
 3. Delete the key-value pair whose name is `Keylogger`.
+
+## Server
+
+The server is programmed to receive key event logs via TCP. It initialises a TCP listener which binds port `8722`, then
+continuously wait for the logs. Every time the server received logs, it will unmarshal the JSON data and try to append
+to the `keylogger.log` file.
+
+### Compile and Run
+
+Execute `go build` to compile the server. Using `go run keylogger.go` to run is also acceptable.
+
+## Platforms
+
+- [x] Windows (passed test on Windows 10 and 11)
+- [ ] Linux (have not tested)
+- [ ] Darwin (have not tested)
 
 ## Acknowledgements
 
