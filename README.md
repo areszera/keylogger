@@ -8,9 +8,9 @@ clipboard, then send them to the target server.
 
 ## Application
 
-The keylogger application is programmed to record keyboard events and clipboard. When the number of logs is greater than
-the configured thresh, it will serialise to JSON and send to the keylogger server via TCP. Every time the application
-runs, it checks and registers autostart.
+The keylogger application is programmed to record keyboard events and clipboard. When there is no operation in the
+recent 10 seconds, it will serialise to JSON and send to the keylogger server via TCP. Every time the application runs,
+it checks and registers autostart.
 
 ### Compile and Run
 
