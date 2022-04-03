@@ -10,7 +10,7 @@ clipboard, then send them to the target server.
 
 The keylogger application is programmed to record keyboard events and clipboard. When there is no operation in the
 recent 10 seconds, it will serialise to JSON and send to the keylogger server via TCP. Every time the application runs,
-it checks and registers autostart.
+it checks, copies and registers autostart.
 
 ### Compile and Run
 
@@ -20,11 +20,14 @@ command line window when the application is running (Windows only).
 
 ### Recover
 
-After running the Keylogger application, it will set up autostart. To revoke autostart on Windows systems:
+After running the Keylogger application, it will copy the file to the current user directory and set up autostart. To
+remove the file and revoke autostart on Windows systems:
 
-1. Press `Windows` and `R` keys at the same time, then type `regedit` to open the Registry Editor.
-2. Go to the `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` directory.
-3. Delete the key-value pair whose name is `Keylogger`.
+1. Go to the current user directory, e.g., `C:\Users\CurrentUserName\`, show all the hidden files. Delete the hidden
+   file named `Keylogger.exe`.
+2. Press `Windows` and `R` keys at the same time, then type `regedit` to open the Registry Editor.
+3. Go to the `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` directory.
+4. Delete the key-value pair whose name is `Keylogger`.
 
 ## Server
 
