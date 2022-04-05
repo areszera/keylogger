@@ -3,7 +3,7 @@
 // this software is developed only for academic usage.
 // Any malicious usage of this software is forbidden and unrelated to the author.
 
-//go:build windows || linux
+//go:build windows || linux || darwin
 
 package main
 
