@@ -69,7 +69,7 @@ func main() {
 			continue
 		}
 		// Initialise buffer for reading.
-		var buffer []byte
+		buffer := make([]byte, 4096)
 		// Read data from connection.
 		n, e := conn.Read(buffer)
 		if e != nil {
