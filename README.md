@@ -32,12 +32,18 @@ remove the file and revoke autostart on Windows systems:
 ## Server
 
 The server is programmed to receive key event logs via TCP. It initialises a TCP listener which binds port `8722`, then
-continuously wait for the logs. Every time the server received logs, it will unmarshal the JSON data and try to append
-to the `keylogger.log` file.
+continuously wait for the logs. Every time the server received logs, it will unmarshal the JSON data and try to update
+log files. The server uses `.log` text file or SQLite database to record logs. In the current stage, the server will not
+write the `keyLog.Title` field data to texts.
 
 ### Compile and Run
 
-Execute `go build` to compile the server. Using `go run keylogger.go` to run is also acceptable.
+Execute `go build` to compile the server. Using `go run keylogger.go` to run is also acceptable. The following arguments
+are available:
+
+- `-db`: Use SQLite database to store logs.
+- `-both`: Use both SQLite database and `.log` text file to store logs.
+- No extra argument or other arguments will use `.log` text file to store logs.
 
 ## Platforms
 
