@@ -14,6 +14,8 @@ import (
 	"syscall"
 )
 
+const KeyName = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+
 // setAutostart registers autostart service on this device.
 // On Windows, set autostart by modifying the registry table.
 func setAutostart() {
