@@ -14,27 +14,76 @@ Every time the application runs, it checks, copies and registers autostart.
 
 ### Compile and Run
 
-The application is suggested to be compiled to executable files then run. Make sure Go has been installed in your
-device, to build for Windows, execute `go build -ldflags "-H windowsgui"`. The `ldflags` of `-H windowsgui` hides the
-command line window when the application is running (Windows only).
+The application is suggested to be compiled to executable files then run. Make sure Go and GCC has been installed in
+your device.
+
+#### On Windows
+
+Execute `go build -ldflags "-H windowsgui" -o keylogger.exe`. The `ldflags` of `-H windowsgui` hides the command line
+window when the application is running. Then double-click the generated `keylogger.exe` file to run it. In the view of
+users, it looks like nothing has happened, but in the Desktop Window Manager, a process named `keylogger.exe` will be in
+the list.
+
+#### On Linux
+
+To compile the keylogger application, other support libraries are required to be installed.
+
+- GCC for compiling.
+- `xcb`, `xkb`, `libxkbcommon` for listening keyboard events.
+- `xsel`, `xclip` for listening clipboards.
+
+To install them using `apt`:
+
+> ```bash
+> # Update
+> sudo apt update
+> 
+> # gcc
+> sudo apt install gcc libc6-dev
+> 
+> # x11
+> sudo apt install libx11-dev xorg-dev libxtst-dev
+>
+> # Hook
+> sudo apt install xcb libxcb-xkb-dev x11-xkb-utils libx11-xcb-dev libxkbcommon-x11-dev libxkbcommon-dev
+>
+> # Clipboard
+> sudo apt install xsel xcli
+> ```
+
+When all the necessary libraries are installed, execute `go build -o keylogger` to compile and `sudo ./keylogger` to run
+the application. `sudo` is necessary here because the directories of `/usr/local/bin/` and `/usr/lib/systemd/system/`
+requires root privileges to modify.
+
+So far, the application **cannot** run silently in the background or as a daemon process. And the service **cannot** start (
+result by core-dump).
 
 ### Recover
 
-After running the Keylogger application, it will copy the file to the current user directory and set up autostart. To
-remove the file and revoke autostart on Windows systems:
+After running the Keylogger application, it will copy the file to the current user directory and set up autostart. Thus,
+even though the compiled application has been deleted, it still exists in other places.
+
+#### On Windows
 
 1. Go to the current user directory, e.g., `C:\Users\CurrentUserName\`, show all the hidden files. Delete the hidden
-   file named `Keylogger.exe`.
+   file named `keylogger.exe`.
 2. Press `Windows` and `R` keys at the same time, then type `regedit` to open the Registry Editor.
 3. Go to the `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` directory.
-4. Delete the key-value pair whose name is `Keylogger`.
+4. Delete the key-value pair named `keylogger`.
+
+#### On Linux
+
+1. Delete `/usr/local/bin/.keylogger` by executing `sudo rm /usr/local/bin/.keylogger`. It deletes the binary copy in
+   the system.
+2. Delete `/usr/lib/systemd/system/keylogger.service` by executing `sudo rm /usr/lib/systemd/system/keylogger.service`.
+   This step removes keylogger service from the system.
 
 ## Server
 
 The server is programmed to receive key event logs via TCP. It initialises a TCP listener which binds port `8722`, then
 continuously wait for the logs. Every time the server received logs, it will unmarshal the JSON data and try to update
 log files. The server uses `.log` text file or SQLite database to record logs. In the current stage, the server will not
-write the `keyLog.Title` field data to texts.
+write the `KeyLog.Title` field data to texts.
 
 ### Compile and Run
 
