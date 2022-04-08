@@ -147,7 +147,7 @@ func listenKeyboard() {
 			// Get title.
 			var title string
 			// Disable this function on Linux due to the possible memory leaks.
-			if runtime.GOOS == "linux" {
+			if runtime.GOOS != "linux" {
 				title = getTitle()
 			}
 			// Handle control characters (ASCII from 0 to 31 and 127)
