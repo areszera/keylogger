@@ -87,7 +87,7 @@ write the `KeyLog.Title` field data to texts.
 
 ### Compile and Run
 
-Execute `go build` to compile the server. Using `go run keylogger.go` to run is also acceptable. The following arguments
+Execute `go build` to compile the server. Using `go run server.go` to run is also acceptable. The following arguments
 are available:
 
 - `-db`: Use SQLite database to store logs.
@@ -97,7 +97,7 @@ are available:
 ## Platforms
 
 - [x] Windows (passed test on Windows 10 and 11)
-- [ ] Linux (have not tested)
+- [x] Linux (passed partial functions on Ubuntu 20.4)
 - [ ] Darwin (have not tested)
 
 ## Acknowledgements
